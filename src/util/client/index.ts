@@ -22,6 +22,11 @@ export default class Bot extends Client {
 	debug = (...args) => log.extend("debug")(...args);
 	success = (...args) => log.extend("success")(...args); 
 	
+	_emojis = {
+		yes: "830151021837680721",
+		no: "830151020851363841"
+	}  
+
 	readonly config = require("../../config");
 
 	fetch = (url: string, options?: object) =>
