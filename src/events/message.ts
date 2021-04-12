@@ -26,11 +26,7 @@ module.exports = {
 				await cmd.run(client, msg, args);
 			} catch (e) {
 				msg.reply("an error occured while executing that command! Our development team have been notified.");
-				client.users.cache.get("506899274748133376").send({
-					embed: {
-						description: `${msg.author} | ${cmd.config.name}\n\n${e.stack}`
-					}
-				});
+				client.users.cache.get("506899274748133376").send(client.genEmbed(`${msg.author} | ${cmd.config.name}\n\n${e.stack}`, 3));
 			}
 		});
 	}

@@ -1,4 +1,4 @@
-import { TextChannel, GuildMember, Message } from "discord.js";
+import { TextChannel, GuildMember, Message, User } from "discord.js";
 import { client } from "../../../";
 
 const coll = client.db.collection("tickets");
@@ -14,22 +14,24 @@ export default class Ticket {
 
     constructor() {};
 
-    async fetch(inputType: "channel" | "id" | "author", input: string | TextChannel, check?: boolean) {
+    async fetch(inputType: "channel" | "id" | "author" | "message", input: string | TextChannel, check?: boolean) {
         let ticket;
         switch(inputType) {
             case "channel":
-                ticket = await coll.findOne({ channel: input });
+                ticket = await coll.findOne({ channelID: input });
                 break;
             case "id":
                 ticket = await coll.findOne({ id: input });
                 break;
             case "author":
-                ticket = await coll.findOne({ author: input });
+                ticket = await coll.findOne({ authorID: input });
+                break;
+            case "message":
+                ticket = await coll.findOne({ message: input });
                 break;
         }
-        
-        if(!ticket && !check) return client.error(`Ticket could not be found with input: ${inputType} => ${input}`);
 
+        if(!ticket) return this.found = false;
         this.found = true;
 
         for(const key of Object.keys(ticket))
@@ -37,11 +39,15 @@ export default class Ticket {
 
         this.channel = client.channels.cache.get(ticket.channel) as TextChannel;
         this.author = await client.guilds.cache.get(client.config.guild).members.fetch(ticket.authorID) as GuildMember;
+
+        return true;
     };
 
     async create(message: Message, description: string) {
         const attachments = message.attachments.map(x => x),
-            fields = [];
+            fields = [],
+            ticketCount = await client.db.collection("tickets").countDocuments({}),
+            ticketId = (ticketCount + 1).toString().padStart(5, "0");
 
         if(attachments.length > 0)
             fields.push({
@@ -53,7 +59,7 @@ export default class Ticket {
             .send({ 
                 embed: {
                     author: {
-                        name: message.author.tag,
+                        name: `${message.author.tag} - #${ticketId}`,
                         icon_url: message.author.displayAvatarURL()
                     },
                     description,
@@ -62,28 +68,32 @@ export default class Ticket {
                 }
             });
 
-
             await msg.react(client._emojis.yes);
             await msg.react(client._emojis.no);
 
-            const ticketCount = await client.db.collection("tickets").countDocuments({}),
-                ticketId = (ticketCount + 1).toString().padStart(5, "0");
-
             coll.insertOne({
                 id: ticketId,
+                status: 1,
                 authorID: message.author.id,
                 createdAt: Date.now(),
                 message: msg.id,
                 attachments
-            })
+            });
+            
+            return true;
         }
 
-    accept() {}
+    accept(acceptor: User) {
+
+    }
+
     reject(){}
-    close() {}
+    close(closer: User, msg: Message) {}
+    delete(closer: User, msg: Message) {}
     supporter() {}
 
     log(input: string) {
-        coll.findOne({ ticketID: this.id })
+        const log = `[] ${input}`
+        coll.findOneAndUpdate({ id: this.id }, { $push: { logs: log } })
     }
 }
